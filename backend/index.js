@@ -1,26 +1,13 @@
 #!/usr/bin/env node
 'use strict';
 
-const port = (() => {
-    const args = process.argv;
-
-    if (args.length !== 3) {
-        console.error("usage: node index.js port");
-        process.exit(1);
-    }
-
-    const num = parseInt(args[2], 10);
-    if (isNaN(num)) {
-        console.error("error: argument must be an integer.");
-        process.exit(1);
-    }
-
-    return num;
-})();
+// Use environment port (Render sets process.env.PORT)
+const port = process.env.PORT || 3001;
 
 // Configuration
-const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000"; // This can be changed when deployed
+const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
 
+// Dependencies
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
@@ -42,34 +29,35 @@ const { JWT_SECRET } = require("./utils/jwtConfig");
 // Create Express app
 const app = express();
 
-// Middlewares
+// CORS setup
 app.use(cors({
     origin: FRONTEND_URL,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
     allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
+// JSON body parser
 app.use(express.json());
 
-// Serve static files from the uploads directory
+// Serve static files (e.g., uploaded images or files)
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
-// Auth routes (no JWT required)
+// Public routes (no token required)
 app.use("/auth", authRoutes);
 
-// JWT authentication middleware
+// JWT middleware (protects everything else)
 app.use(
     jwt({
         secret: JWT_SECRET,
         algorithms: ["HS256"],
     }).unless({
         path: [
-            /^\/auth\//,
+            /^\/auth\//, // Exclude all auth routes
         ],
     })
 );
 
-// App routes (JWT required)
+// Protected routes
 app.use("/users", userRoutes);
 app.use("/transactions", transactionRoutes);
 app.use("/events", eventRoutes);
@@ -85,6 +73,6 @@ const server = app.listen(port, () => {
 });
 
 server.on('error', (err) => {
-    console.error(`cannot start server: ${err.message}`);
+    console.error(` Cannot start server: ${err.message}`);
     process.exit(1);
 });
